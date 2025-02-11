@@ -155,3 +155,18 @@ end)
 
 toggleButton.MouseButton1Click:Connect(toggleAimbot)
 switchButton.MouseButton1Click:Connect(switchTarget)
+
+local player = game.Players.LocalPlayer
+local starterGui = game:GetService("StarterGui")
+
+local function reloadHUD()
+    if not player:FindFirstChild("PlayerGui"):FindFirstChild("AimbotGUI") then
+        local clonedGui = screenGui:Clone()
+        clonedGui.Parent = player:FindFirstChild("PlayerGui")
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    wait(1) -- Small delay to ensure GUI loads after respawn
+    reloadHUD()
+end)
