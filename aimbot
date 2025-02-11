@@ -1,0 +1,157 @@
+local adminCode = "MTLS" -- Admin access code
+local isAdmin = false
+local lockedOut = false -- New variable to track if HUD is locked
+local aimbotEnabled = false
+local aimAtHead = false
+local players = game:GetService("Players")
+local camera = game.Workspace.CurrentCamera
+local user = players.LocalPlayer
+local mouse = user:GetMouse()
+local targetPlayer = nil
+local targetIndex = 1
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui", user:WaitForChild("PlayerGui"))
+screenGui.Name = "AimbotGUI"
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 200, 0, 140)
+frame.Position = UDim2.new(0.5, -100, 0, 50)
+frame.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+frame.Draggable = true
+frame.Active = true
+
+local titleLabel = Instance.new("TextLabel", frame)
+titleLabel.Size = UDim2.new(1, 0, 0.2, 0)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Text = "Aimbot by specc"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextScaled = true
+
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(1, 0, 0.2, 0)
+toggleButton.Position = UDim2.new(0, 0, 0.2, 0)
+toggleButton.Text = "Toggle Aimbot: OFF"
+toggleButton.BackgroundColor3 = Color3.new(0.5, 0, 0)
+
+local switchButton = Instance.new("TextButton", frame)
+switchButton.Size = UDim2.new(1, 0, 0.2, 0)
+switchButton.Position = UDim2.new(0, 0, 0.4, 0)
+switchButton.Text = "Switch Target"
+switchButton.BackgroundColor3 = Color3.new(0, 0.5, 0)
+
+local aimCheckbox = Instance.new("TextButton", frame)
+aimCheckbox.Size = UDim2.new(1, 0, 0.2, 0)
+aimCheckbox.Position = UDim2.new(0, 0, 0.6, 0)
+aimCheckbox.Text = "Aim at: Torso"
+aimCheckbox.BackgroundColor3 = Color3.new(0.2, 0.2, 0.8)
+
+local adminBox = Instance.new("TextBox", frame)
+adminBox.Size = UDim2.new(1, 0, 0.2, 0)
+adminBox.Position = UDim2.new(0, 0, 0.8, 0)
+adminBox.Text = "Enter Admin Code"
+adminBox.BackgroundColor3 = Color3.new(0.8, 0.8, 0.8)
+
+-- Function to lock HUD
+local function lockHUD()
+    lockedOut = true
+    frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    titleLabel.Text = "ACCESS DENIED"
+    titleLabel.TextColor3 = Color3.new(1, 0, 0)
+    
+    toggleButton.Text = "LOCKED"
+    switchButton.Text = "LOCKED"
+    aimCheckbox.Text = "LOCKED"
+    
+    toggleButton.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
+    switchButton.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
+    aimCheckbox.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
+    
+    toggleButton.Active = false
+    switchButton.Active = false
+    aimCheckbox.Active = false
+    adminBox.Active = false
+end
+
+-- Function to get closest player
+local function getClosestPlayer()
+    local closest = nil
+    local minDistance = math.huge
+
+    for _, plr in pairs(players:GetPlayers()) do
+        if plr ~= user and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (plr.Character.HumanoidRootPart.Position - user.Character.HumanoidRootPart.Position).magnitude
+            if distance < minDistance then
+                minDistance = distance
+                closest = plr
+            end
+        end
+    end
+    return closest
+end
+
+-- Function to cycle through targets
+local function switchTarget()
+    if lockedOut then return end
+
+    local allPlayers = {}
+    for _, plr in pairs(players:GetPlayers()) do
+        if plr ~= user and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(allPlayers, plr)
+        end
+    end
+
+    if #allPlayers > 0 then
+        targetIndex = (targetIndex % #allPlayers) + 1
+        targetPlayer = allPlayers[targetIndex]
+    end
+end
+
+-- Function to enable/disable aimbot
+local function toggleAimbot()
+    if lockedOut then return end
+    if isAdmin then
+        aimbotEnabled = not aimbotEnabled
+        toggleButton.Text = "Toggle Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+        toggleButton.BackgroundColor3 = aimbotEnabled and Color3.new(0, 0.5, 0) or Color3.new(0.5, 0, 0)
+    end
+end
+
+-- Function to check for admin access
+adminBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        if adminBox.Text == adminCode then
+            isAdmin = true
+            adminBox.Text = "Access Granted"
+            adminBox.BackgroundColor3 = Color3.new(0, 1, 0)
+        else
+            adminBox.Text = "ACCESS DENIED"
+            adminBox.BackgroundColor3 = Color3.new(1, 0, 0)
+            lockHUD() -- Lock the HUD on incorrect code
+        end
+    end
+end)
+
+-- Function to toggle between head and torso aiming
+aimCheckbox.MouseButton1Click:Connect(function()
+    if lockedOut then return end
+    aimAtHead = not aimAtHead
+    aimCheckbox.Text = "Aim at: " .. (aimAtHead and "Head" or "Torso")
+    aimCheckbox.BackgroundColor3 = aimAtHead and Color3.new(0.8, 0.2, 0.2) or Color3.new(0.2, 0.2, 0.8)
+end)
+
+-- Aimbot loop
+game:GetService("RunService").RenderStepped:Connect(function()
+    if lockedOut then return end
+    if aimbotEnabled and targetPlayer and targetPlayer.Character then
+        local targetPart = aimAtHead and targetPlayer.Character:FindFirstChild("Head") or targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetPart then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, targetPart.Position)
+        end
+    end
+end)
+
+toggleButton.MouseButton1Click:Connect(toggleAimbot)
+switchButton.MouseButton1Click:Connect(switchTarget)
